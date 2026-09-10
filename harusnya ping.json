@@ -1,0 +1,124 @@
+
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Monitoring Latensi & Status Server Publik"
+ },
+ {
+  "Column2": "3s                    5s                    10s                    30s "
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Total Target"
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": 0
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Status Online"
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": 0
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Kendala \/ Down"
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": 0
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Rata-rata Ping"
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "-- ms"
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Mode Lokal "
+ },
+ null,
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Log Aktivitas & Respon Real-time"
+ },
+ null,
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Waktu",
+  "Column2": "Target",
+  "Column3": "IP \/ Host",
+  "Column4": "Status",
+  "Column5": "Latensi"
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Belum ada log tercatat. Ping otomatis sedang berjalan..."
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Catatan Teknis & Penjelasan "
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "HTTP Ping Method: Browser mengukur *Round-Trip Time* (RTT) melalui fetch API HTTP\/HTTPS ber-latensi rendah. "
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Indikator Warna:                                < 50ms Baik                                50-150ms Sedang                                > 150ms Lambat "
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "CORS Mode: Latensi dihitung berdasarkan selisih mikrodetik (`performance.now()`) pengiriman dan balasan header. "
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "IP Publik Anda: Memuat... "
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Nama Target"
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "1.1.1.1"
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Latensi Terakhir"
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "-- ms"
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Rata-rata (Avg)"
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "-- ms"
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Uptime Rate"
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": 1
+ },
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Grafik Latensi Real-Time (30 Check Terakhir)                        Sumbu Y: Latensi (ms) "
+ },
+ null,
+ null,
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Tambah IP \/ Host Target "
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Nama Layanan \/ Host "
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "IP Address \/ URL Domain "
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Gunakan format IP (`8.8.8.8`) atau URL lengkap (`https:\/\/domain.com`)."
+ },
+ {
+  "NetGuard IP Monitor Live v2.4 ": "Kategori                                            Custom Server                        Public DNS                        Web Service \/ CDN "
+ }
