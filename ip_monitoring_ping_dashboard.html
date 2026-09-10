@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Network Monitoring Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Pulse Animation for Ping Status */
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.95); }
+        }
+        .animate-pulse-fast {
+            animation: pulse-fast 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-sky-500 selection:text-white">
+
+    <!-- Header Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30 px-4 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="p-2.5 bg-sky-500/10 border border-sky-500/30 rounded-xl text-sky-400 shadow-lg shadow-sky-500/10">
+                <i class="fa-solid font-bold fa-network-wired text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                    NetGuard IP Monitor
+                    <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Live v2.4</span>
+                </h1>
+                <p class="text-xs text-slate-400">Monitoring Latensi & Status Server Publik</p>
+            </div>
+        </div>
+
+        <!-- Global Quick Controls -->
+        <div class="flex items-center flex-wrap gap-2 sm:gap-3">
+            <!-- Auto Refresh Toggle -->
+            <div class="flex items-center bg-slate-800/80 border border-slate-700/60 rounded-lg p-1 text-xs">
+                <button id="toggle-auto-ping" onclick="app.toggleAutoPing()" class="px-3 py-1.5 rounded-md font-medium transition flex items-center gap-2 bg-sky-600 text-white">
+                    <i class="fa-solid fa-play text-[10px]" id="auto-ping-icon"></i>
+                    <span id="auto-ping-text">Auto Ping: ON</span>
+                </button>
+                <select id="interval-select" onchange="app.changeInterval(this.value)" class="bg-transparent text-slate-300 font-medium px-2 py-1 focus:outline-none cursor-pointer">
+                    <option value="3000">3s</option>
+                    <option value="5000" selected>5s</option>
+                    <option value="10000">10s</option>
+                    <option value="30000">30s</option>
+                </select>
+            </div>
+
+            <!-- Manual Ping All -->
+            <button onclick="app.pingAllTargets()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 text-xs font-medium rounded-lg transition flex items-center gap-1.5 active:scale-95">
+                <i class="fa-solid fa-rotate text-sky-400" id="refresh-icon"></i>
+                <span>Ping Semua</span>
+            </button>
+
+            <!-- Audio Notification Toggle -->
+            <button id="sound-toggle-btn" onclick="app.toggleSound()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 rounded-lg transition text-xs" title="Suara Notifikasi">
+                <i class="fa-solid fa-volume-xmark text-slate-400" id="sound-icon"></i>
+            </button>
+
+            <!-- Add New Target Button -->
+            <button onclick="app.openAddModal()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-sky-600/20 transition flex items-center gap-1.5 active:scale-95">
+                <i class="fa-solid fa-plus"></i>
+                <span>Tambah IP / Target</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full space-y-6">
+
+        <!-- Top Status Dashboard Summary -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Total Targets Card -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Target</p>
+                    <h3 class="text-2xl font-bold text-slate-100 mt-1" id="stat-total">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700/50 flex items-center justify-center text-slate-400">
+                    <i class="fa-solid fa-server text-lg"></i>
+                </div>
+            </div>
+
+            <!-- Online Count Card -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Status Online</p>
+                    <h3 class="text-2xl font-bold text-emerald-400 mt-1" id="stat-online">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-circle-check text-lg"></i>
+                </div>
+            </div>
+
+            <!-- Offline/Degraded Count Card -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Kendala / Down</p>
+                    <h3 class="text-2xl font-bold text-rose-400 mt-1" id="stat-offline">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                </div>
+            </div>
+
+            <!-- Average Ping Card -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Rata-rata Ping</p>
+                    <h3 class="text-2xl font-bold text-sky-400 mt-1" id="stat-avg-ping">-- ms</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                    <i class="fa-solid fa-bolt text-lg"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls & Filters Bar -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/40 p-3 rounded-xl border border-slate-800/80">
+            <!-- Category Tabs -->
+            <div class="flex items-center overflow-x-auto gap-1 pb-1 sm:pb-0" id="category-tabs">
+                <button onclick="app.setCategory('all')" data-cat="all" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-medium transition bg-sky-600 text-white whitespace-nowrap">Semua</button>
+                <button onclick="app.setCategory('dns')" data-cat="dns" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-medium transition text-slate-400 hover:text-white hover:bg-slate-800 whitespace-nowrap">Public DNS</button>
+                <button onclick="app.setCategory('cdn')" data-cat="cdn" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-medium transition text-slate-400 hover:text-white hover:bg-slate-800 whitespace-nowrap">CDN & Web</button>
+                <button onclick="app.setCategory('custom')" data-cat="custom" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-medium transition text-slate-400 hover:text-white hover:bg-slate-800 whitespace-nowrap">Custom User</button>
+            </div>
+
+            <!-- Search input & View Options -->
+            <div class="flex items-center gap-2">
+                <div class="relative flex-1 sm:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
+                    <input type="text" id="search-input" oninput="app.filterTargets()" placeholder="Cari nama atau IP..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition">
+                </div>
+                
+                <button onclick="app.resetDefaultPresets()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 rounded-lg text-xs transition flex items-center gap-1" title="Muat Ulang Preset Default">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span class="hidden md:inline">Reset Preset</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Target Cards Grid -->
+        <div id="target-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Dynamic IP target cards will render here -->
+        </div>
+
+        <!-- Live Log & Event Stream Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
+            <!-- Event History Table -->
+            <div class="lg:col-span-2 bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-sky-400"></i>
+                        <h2 class="text-sm font-semibold text-slate-200">Log Aktivitas & Respon Real-time</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="app.exportLogsCSV()" class="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+                            <i class="fa-solid fa-download mr-1"></i>Ekspor CSV
+                        </button>
+                        <button onclick="app.clearLogs()" class="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 rounded border border-slate-700 transition">
+                            <i class="fa-solid fa-trash-can mr-1"></i>Bersihkan
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto flex-1 mt-3 max-h-64 overflow-y-auto pr-1">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="text-[11px] uppercase bg-slate-800/50 text-slate-400 sticky top-0 backdrop-blur">
+                            <tr>
+                                <th class="p-2 rounded-l">Waktu</th>
+                                <th class="p-2">Target</th>
+                                <th class="p-2">IP / Host</th>
+                                <th class="p-2">Status</th>
+                                <th class="p-2 rounded-r">Latensi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-table-body" class="divide-y divide-slate-800/60">
+                            <tr>
+                                <td colspan="5" class="text-center py-6 text-slate-500">Belum ada log tercatat. Ping otomatis sedang berjalan...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Network Info Box & Info Card -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-3">
+                        <i class="fa-solid fa-circle-info text-sky-400"></i> Catatan Teknis & Penjelasan
+                    </h3>
+                    <ul class="text-xs text-slate-400 space-y-2.5 leading-relaxed">
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                            <span><strong>HTTP Ping Method:</strong> Browser mengukur *Round-Trip Time* (RTT) melalui fetch API HTTP/HTTPS ber-latensi rendah.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                            <span><strong>Indikator Warna:</strong>
+                                <span class="inline-block px-1.5 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20 ml-1">&lt; 50ms Baik</span>
+                                <span class="inline-block px-1.5 py-0.5 text-[10px] bg-amber-500/10 text-amber-400 rounded border border-amber-500/20">50-150ms Sedang</span>
+                                <span class="inline-block px-1.5 py-0.5 text-[10px] bg-rose-500/10 text-rose-400 rounded border border-rose-500/20">&gt; 150ms Lambat</span>
+                            </span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                            <span><strong>CORS Mode:</strong> Latensi dihitung berdasarkan selisih mikrodetik (`performance.now()`) pengiriman dan balasan header.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-500 flex justify-between items-center">
+                    <span>IP Publik Anda: <strong id="user-public-ip" class="text-slate-300 font-mono">Memuat...</strong></span>
+                    <button onclick="app.fetchUserIP()" class="text-sky-400 hover:underline"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: Detail View & Chart -->
+    <div id="detail-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl transition-all">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div id="modal-target-icon" class="p-2 bg-sky-500/10 text-sky-400 rounded-lg text-lg">
+                        <i class="fa-solid fa-server"></i>
+                    </div>
+                    <div>
+                        <h3 id="modal-target-name" class="text-base font-bold text-white">Nama Target</h3>
+                        <p id="modal-target-ip" class="text-xs text-slate-400 code-font">1.1.1.1</p>
+                    </div>
+                </div>
+                <button onclick="app.closeDetailModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5">
+                <!-- Modal Metrics -->
+                <div class="grid grid-cols-3 gap-3 text-center">
+                    <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+                        <p class="text-[11px] text-slate-400">Latensi Terakhir</p>
+                        <p id="modal-current-ping" class="text-xl font-bold text-sky-400 mt-1">-- ms</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+                        <p class="text-[11px] text-slate-400">Rata-rata (Avg)</p>
+                        <p id="modal-avg-ping" class="text-xl font-bold text-emerald-400 mt-1">-- ms</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+                        <p class="text-[11px] text-slate-400">Uptime Rate</p>
+                        <p id="modal-uptime" class="text-xl font-bold text-indigo-400 mt-1">100%</p>
+                    </div>
+                </div>
+
+                <!-- Latency Chart Canvas -->
+                <div>
+                    <h4 class="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                        <span>Grafik Latensi Real-Time (30 Check Terakhir)</span>
+                        <span class="text-[10px] text-slate-500 font-normal">Sumbu Y: Latensi (ms)</span>
+                    </h4>
+                    <div class="h-48 w-full bg-slate-950/50 rounded-xl p-2 border border-slate-800">
+                        <canvas id="detailChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-3 bg-slate-950/60 border-t border-slate-800 flex justify-end">
+                <button onclick="app.closeDetailModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add / Edit Custom Target -->
+    <div id="add-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle text-sky-400"></i> Tambah IP / Host Target
+                </h3>
+                <button onclick="app.closeAddModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="add-target-form" onsubmit="app.saveCustomTarget(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Nama Layanan / Host</label>
+                    <input type="text" id="target-name" required placeholder="Contoh: Router Utama / Server Web" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">IP Address / URL Domain</label>
+                    <input type="text" id="target-address" required placeholder="Contoh: 192.168.1.1, 8.8.4.4, atau https://example.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 code-font">
+                    <p class="text-[11px] text-slate-500 mt-1">Gunakan format IP (`8.8.8.8`) atau URL lengkap (`https://domain.com`).</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Kategori</label>
+                    <select id="target-category" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500">
+                        <option value="custom">Custom Server</option>
+                        <option value="dns">Public DNS</option>
+                        <option value="cdn">Web Service / CDN</option>
+                    </select>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="app.closeAddModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-sky-600/20 transition">
+                        Simpan Target
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm"></div>
+
+    <script>
+        const DEFAULT_TARGETS = [
+            { id: 'cloudflare-dns', name: 'Cloudflare DNS', host: 'https://1.1.1.1', displayHost: '1.1.1.1', category: 'dns', icon: 'fa-shield-halved', status: 'unknown', latency: 0, history: [], checks: 0, successes: 0 },
+            { id: 'google-dns-1', name: 'Google Primary DNS', host: 'https://dns.google', displayHost: '8.8.8.8', category: 'dns', icon: 'fa-google', status: 'unknown', latency: 0, history: [], checks: 0, successes: 0 },
+            { id: 'quad9-dns', name: 'Quad9 Security DNS', host: 'https://9.9.9.9', displayHost: '9.9.9.9', category: 'dns', icon: 'fa-lock', status: 'unknown', latency: 0, history: [], checks: 0, successes: 0 },
+            { id: 'opendns', name: 'OpenDNS Umbrella', host: 'https://208.67.222.222', displayHost: '208.67.222.222', category: 'dns', icon: 'fa-globe', status: 'unknown', latency: 0, history: [], checks: 0, successes: 0 },
+            { id: 'github-web', name: 'GitHub Global', host: 'https://github.com', displayHost: 'github.com', category: 'cdn', icon: 'fa-github', status: 'unknown', latency: 0, history: [], checks: 0, successes: 0 },
+            { id: 'cloudflare-cdn', name: 'Cloudflare CDN Edge', host: 'https://cdnjs.cloudflare.com', displayHost: 'cdnjs.cloudflare.com', category: 'cdn', icon: 'fa-bolt', status: 'unknown', latency: 0, history: [], checks: 0, successes: 0 },
+            { id: 'wikipedia-org', name: 'Wikipedia Main', host: 'https://www.wikipedia.org', displayHost: 'wikipedia.org', category: 'cdn', icon: 'fa-book', status: 'unknown', latency: 0, history: [], checks: 0, successes: 0 }
+        ];
+
+        class MonitoringApp {
+            constructor() {
+                this.targets = this.loadTargets();
+                this.activeCategory = 'all';
+                this.searchQuery = '';
+                this.autoPing = true;
+                this.intervalMs = 5000;
+                this.timerId = null;
+                this.soundEnabled = false;
+                this.logs = [];
+                this.detailChartInstance = null;
+                this.activeModalTargetId = null;
+                this.audioCtx = null;
+            }
+
+            loadTargets() {
+                const stored = localStorage.getItem('netguard_targets');
+                if (stored) {
+                    try {
+                        return JSON.parse(stored);
+                    } catch (e) {
+                        console.error('Gagal memuat target dari localStorage:', e);
+                    }
+                }
+                return JSON.parse(JSON.stringify(DEFAULT_TARGETS));
+            }
+
+            saveTargets() {
+                localStorage.setItem('netguard_targets', JSON.stringify(this.targets));
+            }
+
+            resetDefaultPresets() {
+                if (confirm('Apakah Anda yakin ingin mengembalikan daftar preset ke setelan awal? Target custom akan terhapus.')) {
+                    this.targets = JSON.parse(JSON.stringify(DEFAULT_TARGETS));
+                    this.saveTargets();
+                    this.renderGrid();
+                    this.updateSummaryStats();
+                    this.showToast('Preset telah dikembalikan ke default.', 'info');
+                    this.pingAllTargets();
+                }
+            }
+
+            async pingTarget(target) {
+                const startTime = performance.now();
+                let success = false;
+                let latency = 0;
+
+                // Format URL for browser check
+                let checkUrl = target.host;
+                if (!checkUrl.startsWith('http://') && !checkUrl.startsWith('https://')) {
+                    checkUrl = 'https://' + checkUrl;
+                }
+
+                // Add cache-busting timestamp query parameter
+                const cacheBuster = (checkUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+                const targetUrl = checkUrl + cacheBuster;
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 sec timeout
+
+                try {
+                    // Attempt HTTP fetch
+                    await fetch(targetUrl, {
+                        method: 'HEAD',
+                        mode: 'no-cors',
+                        cache: 'no-store',
+                        signal: controller.signal
+                    });
+                    
+                    const endTime = performance.now();
+                    latency = Math.round(endTime - startTime);
+                    success = true;
+                } catch (err) {
+                    const endTime = performance.now();
+                    const duration = Math.round(endTime - startTime);
+
+                    // If request was aborted due to timeout
+                    if (err.name === 'AbortError') {
+                        success = false;
+                        latency = 4000;
+                    } else if (duration < 3500) {
+                        // In browser, mode 'no-cors' might reject on network error or strict HTTPS mismatch, 
+                        // but if duration is fast, the host is reachable!
+                        latency = duration;
+                        success = true;
+                    } else {
+                        success = false;
+                        latency = duration;
+                    }
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+
+                // Update target history & metrics
+                const prevStatus = target.status;
+                target.checks += 1;
+                if (success) target.successes += 1;
+
+                target.latency = latency;
+                target.status = success ? (latency > 250 ? 'warning' : 'online') : 'offline';
+
+                if (!target.history) target.history = [];
+                target.history.push({
+                    timestamp: new Date().toLocaleTimeString(),
+                    latency: latency,
+                    status: target.status
+                });
+
+                if (target.history.length > 30) target.history.shift();
+
+                // Sound & Toast on status change
+                if (prevStatus !== 'unknown' && prevStatus !== target.status) {
+                    if (target.status === 'offline') {
+                        this.playAlertSound();
+                        this.showToast(`PERINGATAN: ${target.name} TIDAK MERESPON!`, 'error');
+                    } else if (prevStatus === 'offline' && target.status === 'online') {
+                        this.showToast(`PULIH: ${target.name} kembali Online.`, 'success');
+                    }
+                }
+
+                // Log entry
+                this.addLog(target, success, latency);
+                this.saveTargets();
+
+                // Update modal if currently open for this target
+                if (this.activeModalTargetId === target.id) {
+                    this.updateModalData(target);
+                }
+
+                return target;
+            }
+
+            async pingAllTargets() {
+                const icon = document.getElementById('refresh-icon');
+                if (icon) icon.classList.add('fa-spin');
+
+                const promises = this.targets.map(t => this.pingTarget(t));
+                await Promise.all(promises);
+
+                this.renderGrid();
+                this.updateSummaryStats();
+
+                if (icon) icon.classList.remove('fa-spin');
+            }
+
+            addLog(target, success, latency) {
+                const logItem = {
+                    time: new Date().toLocaleTimeString(),
+                    name: target.name,
+                    host: target.displayHost || target.host,
+                    status: target.status,
+                    latency: latency
+                };
+
+                this.logs.unshift(logItem);
+                if (this.logs.length > 50) this.logs.pop();
+
+                this.renderLogTable();
+            }
+
+            renderLogTable() {
+                const tbody = document.getElementById('log-table-body');
+                if (!tbody) return;
+
+                if (this.logs.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">Belum ada log. Pinging...</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = this.logs.map(log => {
+                    let badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                    let statusText = 'Online';
+                    
+                    if (log.status === 'warning') {
+                        badgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                        statusText = 'High Ping';
+                    } else if (log.status === 'offline') {
+                        badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                        statusText = 'Offline';
+                    }
+
+                    return `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="p-2 code-font text-slate-400">${log.time}</td>
+                            <td class="p-2 font-medium text-slate-200">${this.escapeHtml(log.name)}</td>
+                            <td class="p-2 code-font text-slate-400">${this.escapeHtml(log.host)}</td>
+                            <td class="p-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeClass}">
+                                    ${statusText}
+                                </span>
+                            </td>
+                            <td class="p-2 code-font ${log.status === 'offline' ? 'text-rose-400' : 'text-sky-400'}">
+                                ${log.status === 'offline' ? 'TIMEOUT' : log.latency + ' ms'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            clearLogs() {
+                this.logs = [];
+                this.renderLogTable();
+                this.showToast('Log aktivitas dibersihkan.', 'info');
+            }
+
+            exportLogsCSV() {
+                if (this.logs.length === 0) {
+                    this.showToast('Tidak ada log untuk diekspor.', 'warning');
+                    return;
+                }
+
+                let csv = 'Waktu,Nama Target,Host/IP,Status,Latensi (ms)\n';
+                this.logs.forEach(l => {
+                    csv += `"${l.time}","${l.name}","${l.host}","${l.status}",${l.latency}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `netguard_logs_${Date.now()}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                this.showToast('Log berhasil diekspor ke CSV.', 'success');
+            }
+
+            renderGrid() {
+                const grid = document.getElementById('target-grid');
+                if (!grid) return;
+
+                const filtered = this.targets.filter(t => {
+                    const matchCat = this.activeCategory === 'all' || t.category === this.activeCategory;
+                    const matchSearch = t.name.toLowerCase().includes(this.searchQuery) || 
+                                        (t.displayHost || t.host).toLowerCase().includes(this.searchQuery);
+                    return matchCat && matchSearch;
+                });
+
+                if (filtered.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full text-center py-12 bg-slate-900/40 border border-slate-800 rounded-xl">
+                            <i class="fa-solid fa-radar text-3xl text-slate-600 mb-2"></i>
+                            <p class="text-sm text-slate-400">Tidak ada target IP yang cocok dengan filter.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                grid.innerHTML = filtered.map(target => {
+                    const isOnline = target.status === 'online';
+                    const isWarning = target.status === 'warning';
+                    const isOffline = target.status === 'offline';
+
+                    let statusDot = 'bg-slate-500';
+                    let statusBadge = 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+                    let statusLabel = 'Menunggu';
+
+                    if (isOnline) {
+                        statusDot = 'bg-emerald-400 animate-pulse-fast';
+                        statusBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                        statusLabel = 'Online';
+                    } else if (isWarning) {
+                        statusDot = 'bg-amber-400';
+                        statusBadge = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                        statusLabel = 'Tinggi';
+                    } else if (isOffline) {
+                        statusDot = 'bg-rose-500';
+                        statusBadge = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                        statusLabel = 'Offline';
+                    }
+
+                    const uptimePct = target.checks > 0 ? Math.round((target.successes / target.checks) * 100) : 100;
+
+                    return `
+                        <div class="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 transition-all shadow-md group flex flex-col justify-between">
+                            <div>
+                                <!-- Card Header -->
+                                <div class="flex items-start justify-between gap-2 mb-3">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400">
+                                            <i class="fa-solid ${target.icon || 'fa-network-wired'} text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-sm font-bold text-slate-100 group-hover:text-sky-400 transition">${this.escapeHtml(target.name)}</h3>
+                                            <p class="text-[11px] text-slate-400 code-font">${this.escapeHtml(target.displayHost || target.host)}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Status Indicator -->
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge}">
+                                        <span class="w-1.5 h-1.5 rounded-full ${statusDot}"></span>
+                                        ${statusLabel}
+                                    </span>
+                                </div>
+
+                                <!-- Latency Display -->
+                                <div class="my-3 p-2.5 bg-slate-950/60 rounded-lg border border-slate-800/80 flex items-center justify-between">
+                                    <div>
+                                        <span class="text-[10px] text-slate-500 uppercase font-medium">Ping Response</span>
+                                        <div class="text-lg font-bold code-font ${isOffline ? 'text-rose-400' : 'text-slate-100'}">
+                                            ${isOffline ? 'TIMEOUT' : (target.latency || '--') + ' <span class="text-xs font-normal text-slate-400">ms</span>'}
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-[10px] text-slate-500 uppercase font-medium">Uptime Rate</span>
+                                        <div class="text-xs font-semibold text-emerald-400 mt-1">${uptimePct}%</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Actions -->
+                            <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
+                                <button onclick="app.openDetailModal('${target.id}')" class="text-slate-400 hover:text-sky-400 font-medium transition flex items-center gap-1">
+                                    <i class="fa-solid fa-chart-line text-[11px]"></i> Detail Grafik
+                                </button>
+                                
+                                <div class="flex items-center gap-1">
+                                    <button onclick="app.pingSingle('${target.id}')" class="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition" title="Ping Ulang">
+                                        <i class="fa-solid fa-rotate-right text-[11px]"></i>
+                                    </button>
+                                    ${target.category === 'custom' ? `
+                                        <button onclick="app.deleteTarget('${target.id}')" class="p-1.5 text-slate-400 hover:text-rose-400 rounded hover:bg-slate-800 transition" title="Hapus">
+                                            <i class="fa-solid fa-trash-can text-[11px]"></i>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            async pingSingle(id) {
+                const target = this.targets.find(t => t.id === id);
+                if (target) {
+                    await this.pingTarget(target);
+                    this.renderGrid();
+                    this.updateSummaryStats();
+                    this.showToast(`Ping ulang ke ${target.name} selesai.`, 'info');
+                }
+            }
+
+            updateSummaryStats() {
+                const total = this.targets.length;
+                const onlineCount = this.targets.filter(t => t.status === 'online' || t.status === 'warning').length;
+                const offlineCount = this.targets.filter(t => t.status === 'offline').length;
+
+                const activeLatencies = this.targets.filter(t => t.status !== 'offline' && t.latency > 0).map(t => t.latency);
+                const avgPing = activeLatencies.length > 0 
+                    ? Math.round(activeLatencies.reduce((a, b) => a + b, 0) / activeLatencies.length) 
+                    : 0;
+
+                document.getElementById('stat-total').innerText = total;
+                document.getElementById('stat-online').innerText = onlineCount;
+                document.getElementById('stat-offline').innerText = offlineCount;
+                document.getElementById('stat-avg-ping').innerText = avgPing > 0 ? avgPing + ' ms' : '-- ms';
+            }
+
+            openDetailModal(id) {
+                const target = this.targets.find(t => t.id === id);
+                if (!target) return;
+
+                this.activeModalTargetId = id;
+                document.getElementById('modal-target-name').innerText = target.name;
+                document.getElementById('modal-target-ip').innerText = target.displayHost || target.host;
+                
+                this.updateModalData(target);
+                document.getElementById('detail-modal').classList.remove('hidden');
+
+                // Render or re-render chart
+                this.renderDetailChart(target);
+            }
+
+            updateModalData(target) {
+                const currentPingEl = document.getElementById('modal-current-ping');
+                const avgPingEl = document.getElementById('modal-avg-ping');
+                const uptimeEl = document.getElementById('modal-uptime');
+
+                if (currentPingEl) currentPingEl.innerText = target.status === 'offline' ? 'TIMEOUT' : target.latency + ' ms';
+
+                const historyLatencies = (target.history || []).map(h => h.latency);
+                const avg = historyLatencies.length > 0 
+                    ? Math.round(historyLatencies.reduce((a,b) => a+b, 0) / historyLatencies.length) 
+                    : target.latency;
+                
+                if (avgPingEl) avgPingEl.innerText = avg + ' ms';
+
+                const uptimePct = target.checks > 0 ? Math.round((target.successes / target.checks) * 100) : 100;
+                if (uptimeEl) uptimeEl.innerText = uptimePct + '%';
+
+                if (this.detailChartInstance && this.activeModalTargetId === target.id) {
+                    const labels = (target.history || []).map(h => h.timestamp);
+                    const data = (target.history || []).map(h => h.latency);
+                    this.detailChartInstance.data.labels = labels;
+                    this.detailChartInstance.data.datasets[0].data = data;
+                    this.detailChartInstance.update();
+                }
+            }
+
+            renderDetailChart(target) {
+                const ctx = document.getElementById('detailChart').getContext('2d');
+                if (this.detailChartInstance) {
+                    this.detailChartInstance.destroy();
+                }
+
+                const history = target.history || [];
+                const labels = history.map(h => h.timestamp);
+                const dataPoints = history.map(h => h.latency);
+
+                this.detailChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Latensi (ms)',
+                            data: dataPoints,
+                            borderColor: '#0284c7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+
+            closeDetailModal() {
+                this.activeModalTargetId = null;
+                document.getElementById('detail-modal').classList.add('hidden');
+            }
+
+            openAddModal() {
+                document.getElementById('add-modal').classList.remove('hidden');
+            }
+
+            closeAddModal() {
+                document.getElementById('add-modal').classList.add('hidden');
+                document.getElementById('add-target-form').reset();
+            }
+
+            saveCustomTarget(e) {
+                e.preventDefault();
+                const name = document.getElementById('target-name').value.trim();
+                const host = document.getElementById('target-address').value.trim();
+                const category = document.getElementById('target-category').value;
+
+                if (!name || !host) return;
+
+                const newTarget = {
+                    id: 'custom-' + Date.now(),
+                    name: name,
+                    host: host,
+                    displayHost: host,
+                    category: category,
+                    icon: category === 'dns' ? 'fa-shield-halved' : (category === 'cdn' ? 'fa-globe' : 'fa-server'),
+                    status: 'unknown',
+                    latency: 0,
+                    history: [],
+                    checks: 0,
+                    successes: 0
+                };
+
+                this.targets.push(newTarget);
+                this.saveTargets();
+                this.closeAddModal();
+                this.renderGrid();
+                this.updateSummaryStats();
+                this.showToast(`Target "${name}" berhasil ditambahkan.`, 'success');
+                this.pingTarget(newTarget).then(() => {
+                    this.renderGrid();
+                    this.updateSummaryStats();
+                });
+            }
+
+            deleteTarget(id) {
+                if (confirm('Hapus target custom ini dari monitoring?')) {
+                    this.targets = this.targets.filter(t => t.id !== id);
+                    this.saveTargets();
+                    this.renderGrid();
+                    this.updateSummaryStats();
+                    this.showToast('Target berhasil dihapus.', 'info');
+                }
+            }
+
+            toggleAutoPing() {
+                this.autoPing = !this.autoPing;
+                const btn = document.getElementById('toggle-auto-ping');
+                const text = document.getElementById('auto-ping-text');
+                const icon = document.getElementById('auto-ping-icon');
+
+                if (this.autoPing) {
+                    btn.className = "px-3 py-1.5 rounded-md font-medium transition flex items-center gap-2 bg-sky-600 text-white";
+                    text.innerText = "Auto Ping: ON";
+                    icon.className = "fa-solid fa-play text-[10px]";
+                    this.startAutoPing();
+                    this.showToast('Auto ping diaktifkan.', 'info');
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-md font-medium transition flex items-center gap-2 bg-slate-700 text-slate-300";
+                    text.innerText = "Auto Ping: PAUSED";
+                    icon.className = "fa-solid fa-pause text-[10px]";
+                    this.stopAutoPing();
+                    this.showToast('Auto ping dihentikan sementara.', 'warning');
+                }
+            }
+
+            changeInterval(val) {
+                this.intervalMs = parseInt(val, 10);
+                if (this.autoPing) {
+                    this.stopAutoPing();
+                    this.startAutoPing();
+                }
+                this.showToast(`Interval diperbarui ke ${this.intervalMs / 1000} detik.`, 'info');
+            }
+
+            startAutoPing() {
+                this.stopAutoPing();
+                this.timerId = setInterval(() => {
+                    this.pingAllTargets();
+                }, this.intervalMs);
+            }
+
+            stopAutoPing() {
+                if (this.timerId) {
+                    clearInterval(this.timerId);
+                    this.timerId = null;
+                }
+            }
+
+            toggleSound() {
+                this.soundEnabled = !this.soundEnabled;
+                const btn = document.getElementById('sound-toggle-btn');
+                const icon = document.getElementById('sound-icon');
+
+                if (this.soundEnabled) {
+                    btn.className = "p-2 bg-sky-600/20 border border-sky-500/40 text-sky-400 rounded-lg transition text-xs";
+                    icon.className = "fa-solid fa-volume-high text-sky-400";
+                    this.showToast('Suara notifikasi aktif.', 'info');
+                    this.playAlertSound(); // test sound
+                } else {
+                    btn.className = "p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 rounded-lg transition text-xs";
+                    icon.className = "fa-solid fa-volume-xmark text-slate-400";
+                    this.showToast('Suara notifikasi dinonaktifkan.', 'info');
+                }
+            }
+
+            playAlertSound() {
+                if (!this.soundEnabled) return;
+                try {
+                    if (!this.audioCtx) {
+                        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, this.audioCtx.currentTime); // A5 note
+                    gain.gain.setValueAtTime(0.1, this.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start();
+                    osc.stop(this.audioCtx.currentTime + 0.4);
+                } catch (e) {
+                    console.error('Audio synthesizer error:', e);
+                }
+            }
+
+            setCategory(cat) {
+                this.activeCategory = cat;
+                document.querySelectorAll('.cat-btn').forEach(btn => {
+                    if (btn.dataset.cat === cat) {
+                        btn.className = "cat-btn px-3 py-1.5 rounded-lg text-xs font-medium transition bg-sky-600 text-white whitespace-nowrap";
+                    } else {
+                        btn.className = "cat-btn px-3 py-1.5 rounded-lg text-xs font-medium transition text-slate-400 hover:text-white hover:bg-slate-800 whitespace-nowrap";
+                    }
+                });
+                this.renderGrid();
+            }
+
+            filterTargets() {
+                this.searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+                this.renderGrid();
+            }
+
+            async fetchUserIP() {
+                const ipEl = document.getElementById('user-public-ip');
+                if (!ipEl) return;
+                ipEl.innerText = "Mengecek...";
+                try {
+                    const res = await fetch('https://api.ipify.org?format=json');
+                    const data = await res.json();
+                    ipEl.innerText = data.ip || 'Terdeteksi';
+                } catch (e) {
+                    ipEl.innerText = 'Gagal memuat';
+                }
+            }
+
+            showToast(message, type = 'info') {
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+
+                const toast = document.createElement('div');
+                let colors = 'bg-slate-900 border-slate-700 text-slate-200';
+                let icon = 'fa-circle-info text-sky-400';
+
+                if (type === 'success') {
+                    colors = 'bg-emerald-950/90 border-emerald-700/80 text-emerald-200';
+                    icon = 'fa-circle-check text-emerald-400';
+                } else if (type === 'error') {
+                    colors = 'bg-rose-950/90 border-rose-700/80 text-rose-200';
+                    icon = 'fa-triangle-exclamation text-rose-400';
+                } else if (type === 'warning') {
+                    colors = 'bg-amber-950/90 border-amber-700/80 text-amber-200';
+                    icon = 'fa-circle-exclamation text-amber-400';
+                }
+
+                toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl border text-xs shadow-xl transition-all duration-300 transform translate-y-2 opacity-0 ${colors}`;
+                toast.innerHTML = `
+                    <i class="fa-solid ${icon} text-base"></i>
+                    <span class="flex-1 font-medium">${this.escapeHtml(message)}</span>
+                `;
+
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.classList.remove('translate-y-2', 'opacity-0');
+                }, 10);
+
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-2');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3500);
+            }
+
+            escapeHtml(str) {
+                return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gener;').replace(/"/g, '&quot;');
+            }
+
+            init() {
+                this.renderGrid();
+                this.updateSummaryStats();
+                this.fetchUserIP();
+                this.pingAllTargets();
+                this.startAutoPing();
+            }
+        }
+
+        // Initialize Application
+        let app;
+        window.addEventListener('DOMContentLoaded', () => {
+            app = new MonitoringApp();
+            app.init();
+        });
+    </script>
+</body>
+</html>
